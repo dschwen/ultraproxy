@@ -4,6 +4,7 @@ var http = require('http')
   , path = require('path')
   , crypto = require('crypto')
   , useProxy, envProxy = process.env.HTTP_PROXY || process.env.http_proxy, pEnvProxy
+  , dir = 'cache'
 ;
 
 // respect HTTP_PROXY environment variable
@@ -11,6 +12,18 @@ if(useProxy = !!envProxy) {
   if(!/^http:\/\//.test(envProxy)) { envProxy = 'http://'+envProxy; }
   pEnvProxy = url.parse(envProxy);
   console.log( "Using proxy", pEnvProxy.port, pEnvProxy.hostname );
+}
+
+// make sure cache directory exists
+try {
+  stats = fs.lstatSync(dir);
+  if (!stats.isDirectory()) {
+    console.log(dir,'already exists and is not a directory!');
+    process.exit(1);
+  }
+}
+catch (e) {
+  fs.mkdir(dir);
 }
 
 http.createServer(function(request, response) {
@@ -33,7 +46,7 @@ http.createServer(function(request, response) {
   
   md5.update( JSON.stringify(requestdata) );
   hash = md5.digest('hex');
-  file = 'cache/'+hash;
+  file = dir+'/'+hash;
 
   console.log("hash is",hash);
   console.log(requestdata);
