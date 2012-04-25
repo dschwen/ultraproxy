@@ -52,16 +52,19 @@ http.createServer(function(request, response) {
   console.log("hash is",hash);
   console.log(requestdata);
 
-  if( !path.existsSync(file) ) {
-    // file is not cached yet
-    if( useProxy ) {
-      proxy = http.createClient( pEnvProxy.port, pEnvProxy.hostname )
-    } else {
-      proxy = http.createClient(80, request.headers['host'])
+  function cacheMiss() {
+    try {
+      if( useProxy ) {
+        proxy = http.createClient( pEnvProxy.port, pEnvProxy.hostname )
+      } else {
+        proxy = http.createClient(80, request.headers['host'])
+      }
+      proxy_request = proxy.request(request.method, request.url, request.headers);
+    } catch(e) {
+      console.log("Could not create client",e,pEnvProxy.port, pEnvProxy.hostname);
     }
-    proxy_request = proxy.request(request.method, request.url, request.headers);
-
     proxy_request.addListener('response', function (proxy_response) {
+
       proxy_response.addListener('data', function(chunk) {
         cache.chunks.push( chunk.toString('base64') );
         response.write(chunk, 'binary');
@@ -91,6 +94,11 @@ http.createServer(function(request, response) {
     request.addListener('end', function() {
       proxy_request.end();
     });
+  }
+
+  if( !path.existsSync(file) ) {
+    // file is not cached yet
+    cacheMiss();
   } else {
     // retrieve cache object
     fs.readFile( file, 'ascii', function(err,data) {
@@ -99,7 +107,12 @@ http.createServer(function(request, response) {
         process.exit(1);
       }
       console.log('cache hit!');
-      cache = JSON.parse(data);
+      try {
+        cache = JSON.parse(data);
+      } catch(e) {
+        // invalid cache
+        cacheMiss();
+      }
       response.writeHead(cache.statusCode, cache.headers);
       for( i=0; i < cache.chunks.length; ++i ) {
         response.write( new Buffer(cache.chunks[i],'base64'), 'binary' );
