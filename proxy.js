@@ -30,9 +30,19 @@ http.createServer(function(request, response) {
       proxy_response.addListener('end', function() {
         response.end();
         // save the serialized cache object to disk
-        console.log( JSON.stringify(cache) );
-      });
+        fs.writeFile('cache/'+hash, JSON.stringify(cache), function(err) {
+          if(err) {
+              console.log(err);
+          } else {
+              console.log("The file was saved!");
+          }
+        });
+      }
       response.writeHead(proxy_response.statusCode, proxy_response.headers);
+
+      // add headers and status to cache object (TODO, do not cache 404 etc.?)
+      cache.statusCode = proxy_response.statusCode;
+      cache.headers = proxy_response.headers;
     });
     
     // oh, that data should probably go into the hash as well
@@ -44,8 +54,17 @@ http.createServer(function(request, response) {
     });
   } else {
     // retrieve cache object
-    for( i=0; i < cache.chunks.length; ++i ) {
-      response.write( new Buffer(cache.chunks[i],'base64'), 'binary' );
-    }
+    fs.readFile('cache/'+hash, 'ascii', function(err,data) {
+      if(err) {
+        console.error("Could not open file: %s", err);
+        process.exit(1);
+      }
+      cache = JSON.parse(data);
+      response.writeHead(cache.statusCode, cache.headers);
+      for( i=0; i < cache.chunks.length; ++i ) {
+        response.write( new Buffer(cache.chunks[i],'base64'), 'binary' );
+      }
+      response.end();
+    });
   }
 }).listen(13457);
