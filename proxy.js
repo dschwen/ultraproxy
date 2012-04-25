@@ -23,6 +23,7 @@ try {
   }
 }
 catch (e) {
+  console.log('creating cache directory',dir);
   fs.mkdir(dir);
 }
 
