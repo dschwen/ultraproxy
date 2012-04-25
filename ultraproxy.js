@@ -53,23 +53,20 @@ http.createServer(function(request, response) {
   console.log(requestdata);
 
   function cacheMiss() {
-    try {
-      if( useProxy ) {
-        proxy = http.createClient( pEnvProxy.port, pEnvProxy.hostname )
-      } else {
-        proxy = http.createClient(80, request.headers['host'])
-      }
-      proxy_request = proxy.request(request.method, request.url, request.headers);
-    } catch(e) {
-      console.log("Could not create client",e,pEnvProxy.port, pEnvProxy.hostname);
-    }
-    proxy_request.addListener('response', function (proxy_response) {
+    if( useProxy ) {
+      console.log(request);
+process.exit(1);
 
-      proxy_response.addListener('data', function(chunk) {
+      request.port = pEnvProxy.port;
+      request.host = pEnvProxy.hostname;
+    }
+  
+    proxy_request = http.request(request, function(res) {
+      res.on('data', function(chunk) {
         cache.chunks.push( chunk.toString('base64') );
         response.write(chunk, 'binary');
       });
-      proxy_response.addListener('end', function() {
+      res.on('end', function() {
         response.end();
         // save the serialized cache object to disk
         fs.writeFile( file, JSON.stringify(cache), function(err) {
@@ -80,18 +77,22 @@ http.createServer(function(request, response) {
           }
         });
       });
-      response.writeHead(proxy_response.statusCode, proxy_response.headers);
+      response.writeHead( res.statusCode, res.headers);
 
       // add headers and status to cache object (TODO, do not cache 404 etc.?)
       cache.statusCode = proxy_response.statusCode;
-      cache.headers = proxy_response.headers;
+      cache.headers    = proxy_response.headers;
+    });
+
+    proxy_request.on('error', function(err) {
+      console.error('Problem with the request %s',err);
     });
     
     // oh, that data should probably go into the hash as well
-    request.addListener('data', function(chunk) {
+    request.on('data', function(chunk) {
       proxy_request.write(chunk, 'binary');
     });
-    request.addListener('end', function() {
+    request.on('end', function() {
       proxy_request.end();
     });
   }
