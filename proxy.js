@@ -10,7 +10,7 @@ var http = require('http')
 if(useProxy = !!envProxy) {
   if(!/^http:\/\//.test(envProxy)) { envProxy = 'http://'+envProxy; }
   pEnvProxy = url.parse(envProxy);
-  console.log(pEnvProxy);
+  console.log( "Using proxy", pEnvProxy.port, pEnvProxy.hostname );
 }
 
 http.createServer(function(request, response) {
@@ -41,7 +41,7 @@ http.createServer(function(request, response) {
   if( !path.existsSync(file) ) {
     // file is not cached yet
     if( useProxy ) {
-      //proxy = http.createClient(8080, 'proxyout.lanl.gov')
+      proxy = http.createClient( pEnvProxy.port, pEnvProxy.hostname )
     } else {
       proxy = http.createClient(80, request.headers['host'])
     }
