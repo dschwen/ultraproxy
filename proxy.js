@@ -1,25 +1,38 @@
 var http = require('http')
   , fs = require('fs')
+  , path = require('path')
   , crypto = require('crypto')
 ;
 
 http.createServer(function(request, response) {
   var proxy, proxy_request
     , md5 = crypto.createHash('md5')
-    , requestdata = JSON.stringify( { m:request.method, u:request.url, h:request.headers } )
-    , hash, cache = { chunks: [] }
+    , requestdata = { m:request.method, u:request.url, h:{} }
+    , hash, file, cache = { chunks: [] }
     , i
   ;
 
-  md5.update( requestdata );
+  // deep copy headers
+  for( key in request.headers ) {
+    requestdata.h[key] = request.headers[key];
+  }
+
+  // improve cacheing by removing certain headers
+  delete requestdata.h['user-agent'];
+  delete requestdata.h['referer'];
+  delete requestdata.h['cookie'];
+  
+  md5.update( JSON.stringify(requestdata) );
   hash = md5.digest('hex');
+  file = 'cache/'+hash;
 
   console.log("hash is",hash);
   console.log(requestdata);
 
-  if( 1 ) {
+  if( !path.existsSync(file) ) {
     // file is not cached yet
     proxy = http.createClient(80, request.headers['host'])
+    //proxy = http.createClient(8080, 'proxyout.lanl.gov')
     proxy_request = proxy.request(request.method, request.url, request.headers);
 
     proxy_request.addListener('response', function (proxy_response) {
@@ -30,14 +43,14 @@ http.createServer(function(request, response) {
       proxy_response.addListener('end', function() {
         response.end();
         // save the serialized cache object to disk
-        fs.writeFile('cache/'+hash, JSON.stringify(cache), function(err) {
+        fs.writeFile( file, JSON.stringify(cache), function(err) {
           if(err) {
               console.log(err);
           } else {
               console.log("The file was saved!");
           }
         });
-      }
+      });
       response.writeHead(proxy_response.statusCode, proxy_response.headers);
 
       // add headers and status to cache object (TODO, do not cache 404 etc.?)
@@ -54,11 +67,12 @@ http.createServer(function(request, response) {
     });
   } else {
     // retrieve cache object
-    fs.readFile('cache/'+hash, 'ascii', function(err,data) {
+    fs.readFile( file, 'ascii', function(err,data) {
       if(err) {
         console.error("Could not open file: %s", err);
         process.exit(1);
       }
+      console.log('cache hit!');
       cache = JSON.parse(data);
       response.writeHead(cache.statusCode, cache.headers);
       for( i=0; i < cache.chunks.length; ++i ) {
