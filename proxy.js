@@ -1,8 +1,17 @@
 var http = require('http')
+  , url = require('url')
   , fs = require('fs')
   , path = require('path')
   , crypto = require('crypto')
+  , useProxy, envProxy = process.env.HTTP_PROXY || process.env.http_proxy, pEnvProxy
 ;
+
+// respect HTTP_PROXY environment variable
+if(useProxy = !!envProxy) {
+  if(!/^http:\/\//.test(envProxy)) { envProxy = 'http://'+envProxy; }
+  pEnvProxy = url.parse(envProxy);
+  console.log(pEnvProxy);
+}
 
 http.createServer(function(request, response) {
   var proxy, proxy_request
@@ -31,8 +40,11 @@ http.createServer(function(request, response) {
 
   if( !path.existsSync(file) ) {
     // file is not cached yet
-    proxy = http.createClient(80, request.headers['host'])
-    //proxy = http.createClient(8080, 'proxyout.lanl.gov')
+    if( useProxy ) {
+      //proxy = http.createClient(8080, 'proxyout.lanl.gov')
+    } else {
+      proxy = http.createClient(80, request.headers['host'])
+    }
     proxy_request = proxy.request(request.method, request.url, request.headers);
 
     proxy_request.addListener('response', function (proxy_response) {
