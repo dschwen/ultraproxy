@@ -64,21 +64,22 @@ http.createServer(function(request, response) {
     var hp = hostPort(requestdata.h.host)
       , options = {
           host: useProxy ? pEnvProxy.hostname : hp.hostname,
-          port: useProxy ? pEnvProxy.port : (hp.port||80),
-          path: useProxy ? request.url : hp.path,
+          port: useProxy ? pEnvProxy.port     : (hp.port||80),
+          path: useProxy ? request.url        : hostPort(request.url).path,
           headers: request.headers,
           method: request.method
         }
       ;
     
     console.log("cache miss ", request.url );
-    if( hash == '01a9dcf55da1c77f30263198fa892b8f' ) { 
-      console.log(request); 
-      console.log(options);
-    }
+    //  console.log(request); 
+    //console.log(options);
     
     proxy_request = http.request(options, function(res) {
       var fd = fs.openSync( file+'.data', 'w');
+
+      response.writeHead( res.statusCode, res.headers);
+      console.log(res.statusCode, res.headers);
 
       res.on('data', function(chunk) {
         // write binary response date to disk
@@ -90,12 +91,13 @@ http.createServer(function(request, response) {
         response.end();
         fs.close(fd);
       });
-      response.writeHead( res.statusCode, res.headers);
 
       // write headers and status as separate JSON file (TODO, do not cache 404 etc.?)
-      fs.writeFile( file+'.head', JSON.stringify( { statusCode: res.statusCode, headers: res.headers, url: request.url } ), function(err) {
-        if(err) { console.log(err); }
-      });
+      //if( res.statusCode == 200 ) {
+        fs.writeFile( file+'.head', JSON.stringify( { statusCode: res.statusCode, headers: res.headers, url: request.url } ), function(err) {
+          if(err) { console.log(err); }
+        });
+      //}
     });
 
     proxy_request.on('error', function(err) {
