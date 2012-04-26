@@ -79,7 +79,7 @@ http.createServer(function(request, response) {
       var fd = fs.openSync( file+'.data', 'w');
 
       response.writeHead( res.statusCode, res.headers);
-      console.log(res.statusCode, res.headers);
+      //console.log(res.statusCode, res.headers);
 
       res.on('data', function(chunk) {
         // write binary response date to disk
