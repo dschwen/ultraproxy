@@ -8,30 +8,36 @@ var http = require('http')
 ;
 
 // respect HTTP_PROXY environment variable
+function hostPort(host) {
+  if(!/^http:\/\//.test(host)) { host = 'http://'+host; }
+  return url.parse(host);
+}
 if(useProxy = !!envProxy) {
-  if(!/^http:\/\//.test(envProxy)) { envProxy = 'http://'+envProxy; }
-  pEnvProxy = url.parse(envProxy);
+  pEnvProxy = hostPort(envProxy);
   console.log( "Using proxy", pEnvProxy.port, pEnvProxy.hostname );
 }
 
 // make sure cache directory exists
-try {
-  stats = fs.lstatSync(dir);
-  if (!stats.isDirectory()) {
-    console.log(dir,'already exists and is not a directory!');
-    process.exit(1);
+function makeDirectory(dir) {
+  try {
+    stats = fs.lstatSync(dir);
+    if (!stats.isDirectory()) {
+      console.log(dir,'already exists and is not a directory!');
+      process.exit(1);
+    }
+  }
+  catch (e) {
+    console.log('creating cache directory',dir);
+    fs.mkdir(dir);
   }
 }
-catch (e) {
-  console.log('creating cache directory',dir);
-  fs.mkdir(dir);
-}
+makeDirectory(dir);
 
 http.createServer(function(request, response) {
   var proxy, proxy_request
     , md5 = crypto.createHash('md5')
     , requestdata = { m:request.method, u:request.url, h:{} }
-    , hash, file, cache = { chunks: [] }
+    , hash, sdir, file, cache = { chunks: [] }
     , i
   ;
 
@@ -41,47 +47,55 @@ http.createServer(function(request, response) {
   }
 
   // improve cacheing by removing certain headers
-  delete requestdata.h['user-agent'];
-  delete requestdata.h['referer'];
-  delete requestdata.h['cookie'];
+  //delete requestdata.h['user-agent'];
+  //delete requestdata.h['referer'];
+  //delete requestdata.h['cookie'];
   
   md5.update( JSON.stringify(requestdata) );
   hash = md5.digest('hex');
-  file = dir+'/'+hash;
+  sdir = dir+'/'+hash.substring(0,2);
+  makeDirectory(sdir);
+  file = sdir+'/'+hash;
 
-  console.log("hash is",hash);
-  console.log(requestdata);
+  //console.log("hash is",hash);
+  //console.log(request);
 
   function cacheMiss() {
-    var options = {
-      host: useProxy ? pEnvProxy.hostname : request.host,
-      port: useProxy ? pEnvProxy.port : (request.port||80),
-      path: request.url,
-      headers: request.headers
+    var hp = hostPort(requestdata.h.host)
+      , options = {
+          host: useProxy ? pEnvProxy.hostname : hp.hostname,
+          port: useProxy ? pEnvProxy.port : (hp.port||80),
+          path: useProxy ? request.url : hp.path,
+          headers: request.headers,
+          method: request.method
+        }
+      ;
+    
+    console.log("cache miss ", request.url );
+    if( hash == '01a9dcf55da1c77f30263198fa892b8f' ) { 
+      console.log(request); 
+      console.log(options);
     }
-    console.log(options);
-  
+    
     proxy_request = http.request(options, function(res) {
+      var fd = fs.openSync( file+'.data', 'w');
+
       res.on('data', function(chunk) {
-        cache.chunks.push( chunk.toString('base64') );
+        // write binary response date to disk
+        fs.write(fd, chunk, 0, chunk.length );
+        // pass response through to client
         response.write(chunk, 'binary');
       });
       res.on('end', function() {
         response.end();
-        // save the serialized cache object to disk
-        fs.writeFile( file, JSON.stringify(cache), function(err) {
-          if(err) {
-              console.log(err);
-          } else {
-              console.log("The file was saved!");
-          }
-        });
+        fs.close(fd);
       });
       response.writeHead( res.statusCode, res.headers);
 
-      // add headers and status to cache object (TODO, do not cache 404 etc.?)
-      cache.statusCode = res.statusCode;
-      cache.headers    = res.headers;
+      // write headers and status as separate JSON file (TODO, do not cache 404 etc.?)
+      fs.writeFile( file+'.head', JSON.stringify( { statusCode: res.statusCode, headers: res.headers, url: request.url } ), function(err) {
+        if(err) { console.log(err); }
+      });
     });
 
     proxy_request.on('error', function(err) {
@@ -97,17 +111,18 @@ http.createServer(function(request, response) {
     });
   }
 
-  if( !path.existsSync(file) ) {
+  if( !( path.existsSync(file+'.data') &&  
+         path.existsSync(file+'.head') ) ) {
     // file is not cached yet
     cacheMiss();
   } else {
     // retrieve cache object
-    fs.readFile( file, 'ascii', function(err,data) {
+    fs.readFile( file+'.head', 'ascii', function(err,data) {
       if(err) {
         console.error("Could not open file: %s", err);
         process.exit(1);
       }
-      console.log('cache hit!');
+      console.log("cache hit! ", request.url );
       try {
         cache = JSON.parse(data);
       } catch(e) {
@@ -115,10 +130,18 @@ http.createServer(function(request, response) {
         cacheMiss();
       }
       response.writeHead(cache.statusCode, cache.headers);
-      for( i=0; i < cache.chunks.length; ++i ) {
-        response.write( new Buffer(cache.chunks[i],'base64'), 'binary' );
-      }
-      response.end();
+      
+      var read_stream = fs.createReadStream(file+'.data');
+      read_stream.on("data", function(data){
+        response.write(data, 'binary');
+      });
+      read_stream.on("error", function(err){
+        console.error("An error occurred: %s", err)
+        response.end();
+      });
+      read_stream.on("close", function(){
+        response.end();
+      });
     });
   }
 }).listen(13457);
