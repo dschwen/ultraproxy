@@ -53,15 +53,15 @@ http.createServer(function(request, response) {
   console.log(requestdata);
 
   function cacheMiss() {
-    if( useProxy ) {
-      console.log(request);
-process.exit(1);
-
-      request.port = pEnvProxy.port;
-      request.host = pEnvProxy.hostname;
+    var options = {
+      host: useProxy ? pEnvProxy.hostname : request.host,
+      port: useProxy ? pEnvProxy.port : (request.port||80),
+      path: request.url,
+      headers: request.headers
     }
+    console.log(options);
   
-    proxy_request = http.request(request, function(res) {
+    proxy_request = http.request(options, function(res) {
       res.on('data', function(chunk) {
         cache.chunks.push( chunk.toString('base64') );
         response.write(chunk, 'binary');
@@ -80,8 +80,8 @@ process.exit(1);
       response.writeHead( res.statusCode, res.headers);
 
       // add headers and status to cache object (TODO, do not cache 404 etc.?)
-      cache.statusCode = proxy_response.statusCode;
-      cache.headers    = proxy_response.headers;
+      cache.statusCode = res.statusCode;
+      cache.headers    = res.headers;
     });
 
     proxy_request.on('error', function(err) {
