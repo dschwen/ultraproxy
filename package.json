@@ -34,5 +34,5 @@
   "engines": {
     "node": ">= 0.6.0"
   },
-  "readme": "# Ultraproxy\n\nultraproxy is a small and simple agressively caching proxy.\nIt is horribly standards non-compliant and will most likely break lots of\nthings. Do not use it if you don't know what you're doing!\n\nultraproxy.js is meant for offline replay of simple web content. I\ndeveloped it for use with my HTML based presentation framework jSlide to\nshow off online content on my offline presentation laptop.\n\n```\n// install\nnpm install -g ultraproxy\n\n// start proxy on port 8080\nultraproxy 8080\n```\n\n"
+  "readme": "# Ultraproxy\n\nultraproxy is a small and simple agressively caching proxy.\nIt is horribly standards non-compliant and will most likely break lots of\nthings. Do not use it if you don't know what you're doing!\n\nultraproxy.js is meant for offline replay of simple web content. I\ndeveloped it for use with my HTML based presentation framework jSlide to\nshow off online content on my offline presentation laptop.\n\n```js\n// install\nnpm install -g ultraproxy\n\n// start proxy on port 8080\nultraproxy 8080\n```\n\nUltraproxy will create a ```cache``` directory below the current directory.\nUltraproxy respects the HTTP_PROXY environment variable and redirects\ntraffic appropriately."
 }

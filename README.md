@@ -8,7 +8,7 @@ ultraproxy.js is meant for offline replay of simple web content. I
 developed it for use with my HTML based presentation framework jSlide to 
 show off online content on my offline presentation laptop.
 
-```
+```js
 // install
 npm install -g ultraproxy
 
