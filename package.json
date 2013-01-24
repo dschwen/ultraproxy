@@ -1,0 +1,38 @@
+{
+  "name": "ultraproxy",
+  "version": "0.0.1",
+  "description": "Horribly agressive cacheing proxy",
+  "homepage": "http://schwen.de",
+  "keywords": [
+    "proxy", 
+    "cache", 
+    "cacheing", 
+    "offline"
+  ],
+  "author": {
+    "name": "Daniel Schwen",
+    "email": "node@schwen.de"
+  },
+  "contributors": [
+    {
+      "name": "Daniel Schwen",
+      "email": "node@schwen.de"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dschwen/ultraproxy.git"
+  },
+  "dependencies": {
+    "crypto": "0.0.x"
+  },
+  "devDependencies": {
+  },
+  "bin" : {
+    "ultraproxy": "bin/index.js"
+  },
+  "engines": {
+    "node": ">= 0.6.0"
+  },
+  "readme": "# Ultraproxy\n\nultraproxy is a small and simple agressively caching proxy.\nIt is horribly standards non-compliant and will most likely break lots of\nthings. Do not use it if you don't know what you're doing!\n\nultraproxy.js is meant for offline replay of simple web content. I\ndeveloped it for use with my HTML based presentation framework jSlide to\nshow off online content on my offline presentation laptop.\n\n```\n// install\nnpm install -g ultraproxy\n\n// start proxy on port 8080\nultraproxy 8080\n```\n\n"
+}

@@ -1,11 +1,18 @@
+#!/usr/bin/env node
+
 var http = require('http')
   , url = require('url')
   , fs = require('fs')
   , path = require('path')
   , crypto = require('crypto')
   , useProxy, envProxy = process.env.HTTP_PROXY || process.env.http_proxy, pEnvProxy
+  , port = parseInt(process.argv[2], 10)
   , dir = 'cache'
 ;
+
+port = port || 8080;
+
+console.log( "Proxy server listening at port", port );
 
 // respect HTTP_PROXY environment variable
 function hostPort(host) {
@@ -146,4 +153,4 @@ http.createServer(function(request, response) {
       });
     });
   }
-}).listen(13457);
+}).listen(port);
